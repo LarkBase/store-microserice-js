@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid()) // UUID for security
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(USER) // Role-based access control
+  status      Status   @default(ACTIVE) // Account status
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  sessions     Session[]
+  passwordResets PasswordReset[]
+  auditLogs    AuditLog[]
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  token       String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id          String   @id @default(uuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Index for faster lookups
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  ipAddress String
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Index for faster queries
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Status {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
