@@ -10,6 +10,8 @@ describe("Order API Tests", () => {
   let orderId;
 
   beforeAll(async () => {
+    console.log("🌱 Seeding database for Order API tests...");
+
     // ✅ Simulate Admin & User from `user-service`
     const admin = { id: "admin-1", email: "admin@example.com", role: "ADMIN" };
     const user = { id: "user-1", email: "user@example.com", role: "USER" };
@@ -27,7 +29,7 @@ describe("Order API Tests", () => {
           create: [{ productId: "prod-1", quantity: 2, price: 250 }],
         },
         payment: {
-          create: { method: "Credit Card", status: "PENDING" },
+          create: { method: "CREDIT_CARD", status: "PENDING" }, // ✅ Matches `PaymentMethod` Enum
         },
         tracking: {
           create: { status: "PENDING" },
@@ -39,6 +41,7 @@ describe("Order API Tests", () => {
   });
 
   afterAll(async () => {
+    console.log("🧹 Cleaning up database...");
     await prisma.order.deleteMany({});
     await prisma.$disconnect();
   });
@@ -96,6 +99,46 @@ describe("Order API Tests", () => {
     const res = await request(app)
       .put(`/api/orders/${orderId}/status`)
       .send({ status: "DELIVERED" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe("Unauthorized access.");
+  });
+
+  // ✅ Test: Get Order Details - User Can View Own Order
+  test("GET /api/orders/:id - User retrieves order successfully", async () => {
+    const res = await request(app)
+      .get(`/api/orders/${orderId}`)
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.order.id).toBe(orderId);
+  });
+
+  // ❌ Test: Get Order Details - Unauthorized Access
+  test("GET /api/orders/:id - Unauthorized access", async () => {
+    const res = await request(app).get(`/api/orders/${orderId}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe("Unauthorized access.");
+  });
+
+  // ✅ Test: Cancel an Order - Admin Cancels Successfully
+  test("DELETE /api/orders/:id - Admin cancels order successfully", async () => {
+    const res = await request(app)
+      .delete(`/api/orders/${orderId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toBe("Order cancelled");
+  });
+
+  // ❌ Test: Cancel an Order - Unauthorized Access
+  test("DELETE /api/orders/:id - Unauthorized access", async () => {
+    const res = await request(app).delete(`/api/orders/${orderId}`);
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);

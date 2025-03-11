@@ -14,9 +14,10 @@ model Order {
   totalAmount Decimal
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
   items       OrderItem[]
-  payment     Payment?
-  tracking    Tracking?
+  payment     Payment?   // ✅ Order does NOT define relation fields!
+  tracking    Tracking?  // ✅ Order does NOT define relation fields!
 }
 
 model OrderItem {
@@ -29,12 +30,17 @@ model OrderItem {
 }
 
 model Payment {
-  id        String  @id @default(uuid())
-  orderId   String  @unique
-  method    String
+  id        String        @id @default(uuid())
+  orderId   String        @unique
+  method    PaymentMethod
   status    PaymentStatus @default(PENDING)
+  transactionId String?   @unique
+  amount    Decimal       @default(0.00)
   paidAt    DateTime?
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now())
+
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade) // ✅ Payment holds the relation
 }
 
 model Tracking {
@@ -42,7 +48,8 @@ model Tracking {
   orderId   String  @unique
   status    String
   updatedAt DateTime @default(now())
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade) // ✅ Tracking holds the relation
 }
 
 enum OrderStatus {
@@ -51,6 +58,14 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  UPI
+  NET_BANKING
 }
 
 enum PaymentStatus {

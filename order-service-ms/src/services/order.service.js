@@ -13,15 +13,14 @@ const findOrderById = async (orderId) => {
 };
 
 const changeOrderStatus = async (orderId, status) => {
-    const validStatuses = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
-  
-    if (!validStatuses.includes(status)) {
-      throw new Error("Invalid order status provided."); // ✅ Now handled BEFORE Prisma call
-    }
-  
-    return updateStatus(orderId, status);
-  };
-  
+  const validStatuses = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
+
+  if (!validStatuses.includes(status)) {
+    throw new Error("Invalid order status provided."); // ✅ Now handled BEFORE Prisma call
+  }
+
+  return updateStatus(orderId, status);
+};
 
 const removeOrder = async (orderId) => {
   return deleteOrder(orderId);

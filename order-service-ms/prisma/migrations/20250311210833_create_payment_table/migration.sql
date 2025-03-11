@@ -2,6 +2,9 @@
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED');
 
 -- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('CREDIT_CARD', 'DEBIT_CARD', 'PAYPAL', 'UPI', 'NET_BANKING');
+
+-- CreateEnum
 CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
 
 -- CreateTable
@@ -31,9 +34,13 @@ CREATE TABLE "OrderItem" (
 CREATE TABLE "Payment" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
-    "method" TEXT NOT NULL,
+    "method" "PaymentMethod" NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "transactionId" TEXT,
+    "amount" DECIMAL(65,30) NOT NULL DEFAULT 0.00,
     "paidAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
@@ -50,6 +57,9 @@ CREATE TABLE "Tracking" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Payment_orderId_key" ON "Payment"("orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Payment_transactionId_key" ON "Payment"("transactionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tracking_orderId_key" ON "Tracking"("orderId");

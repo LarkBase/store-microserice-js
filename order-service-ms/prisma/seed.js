@@ -28,7 +28,7 @@ async function main() {
       },
       payment: {
         create: {
-          method: "Credit Card",
+          method: "CREDIT_CARD", // ✅ Fixed ENUM value
           status: "PENDING",
         },
       },
@@ -51,7 +51,7 @@ async function main() {
       },
       payment: {
         create: {
-          method: "PayPal",
+          method: "PAYPAL", // ✅ Fixed ENUM value
           status: "COMPLETED",
         },
       },

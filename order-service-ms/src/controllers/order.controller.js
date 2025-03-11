@@ -20,19 +20,18 @@ const getOrderDetails = async (req, res) => {
 };
 
 const updateOrderStatus = async (req, res) => {
-    try {
-      const { status } = req.body;
-  
-      if (!status) {
-        return res.status(400).json({ success: false, message: "Status is required." });
-      }
-  
-      const updatedOrder = await changeOrderStatus(req.params.id, status);
-      res.status(200).json({ success: true, order: updatedOrder });
-    } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+  try {
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, message: "Status is required." });
     }
-  };
+
+    const updatedOrder = await changeOrderStatus(req.params.id, status);
+    res.status(200).json({ success: true, order: updatedOrder });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
 
 const cancelOrder = async (req, res) => {
   try {

@@ -23,9 +23,11 @@ app.use(rateLimiter);
 
 // Routes
 const orderRoutes = require("./routes/order.routes");
+const paymentRoutes = require("./routes/payment.routes");
 const healthRoutes = require("./routes/health.routes");
 
 app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/", healthRoutes);
 // 404 Handler
 app.use(notFoundHandler);

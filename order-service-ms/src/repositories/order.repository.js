@@ -5,6 +5,7 @@ const createNewOrder = async (userId, orderData) => {
     data: {
       userId,
       totalAmount: orderData.totalAmount,
+      status: "PENDING",
       items: {
         create: orderData.items.map((item) => ({
           productId: item.productId,
