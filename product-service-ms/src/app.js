@@ -23,11 +23,11 @@ app.use(rateLimiter);
 
 // Routes
 const productRoutes = require("./routes/product.routes");
-// const categoryRoutes = require("./routes/category.routes");
+const categoryRoutes = require("./routes/category.routes");
 const healthRoutes = require("./routes/health.routes");
 
 app.use("/api/products", productRoutes);
-// app.use("/api/categories", categoryRoutes);
+app.use("/api/categories", categoryRoutes);
 app.use("/", healthRoutes);
 
 
