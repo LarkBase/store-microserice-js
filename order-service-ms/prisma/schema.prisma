@@ -52,6 +52,13 @@ model Tracking {
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade) // ✅ Tracking holds the relation
 }
 
+model Wishlist {
+  id        String  @id @default(uuid())
+  userId    String  // ✅ No relation, since User is in `user-service`
+  productId String
+  createdAt DateTime @default(now())
+}
+
 enum OrderStatus {
   PENDING
   PROCESSING

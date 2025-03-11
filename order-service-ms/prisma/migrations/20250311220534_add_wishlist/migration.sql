@@ -55,6 +55,16 @@ CREATE TABLE "Tracking" (
     CONSTRAINT "Tracking_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Wishlist" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Wishlist_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Payment_orderId_key" ON "Payment"("orderId");
 
