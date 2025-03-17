@@ -1,0 +1,23 @@
+# Use Node.js 22.14.0 Alpine as the base image
+FROM node:22.14.0-alpine AS base
+
+# Set the working directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application code
+COPY . .
+
+# Generate Prisma client (Fixes Query Engine Issue)
+RUN npx prisma generate
+
+# Expose the correct port
+EXPOSE 5001
+
+# Run migrations and seed the database before starting the app
+CMD npx prisma migrate dev --name init && npm run seed && npm run dev

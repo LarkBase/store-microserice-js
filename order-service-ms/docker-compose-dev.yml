@@ -1,0 +1,38 @@
+services:
+  user-service-db:
+    image: postgres:17-alpine
+    container_name: user-service-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user-service-ms
+    ports:
+      - "5457:5457"
+    volumes:
+      - user-service-db-data:/var/lib/postgresql/data
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: user-service
+    restart: always
+    environment:
+      NODE_ENV: development
+      PORT: 5001
+      DATABASE_URL: "postgresql://postgres:postgres@order-service-db:5432/order-service-ms?schema=customer"
+      JWT_SECRET: "brxDFOfYDBayLzRovZjkqPOpuDmsWJeY"
+      RATE_LIMIT_MAX: 100
+      RATE_LIMIT_WINDOW: 15
+    ports:
+      - "5001:5001"
+    depends_on:
+      - user-service-db
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+volumes:
+  user-service-db-data:
+    driver: local

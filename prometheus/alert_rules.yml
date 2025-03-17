@@ -1,0 +1,38 @@
+groups:
+  - name: user-service-alerts
+    rules:
+      - alert: HighLoginFailures
+        expr: rate(login_failures_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Login Failures"
+          description: "More than 5 login failures detected within the last 5 minutes."
+
+      - alert: HighLoginAttempts
+        expr: increase(login_requests_total[1m]) > 10
+
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Login Attempts Detected"
+          description: "More than 10 login attempts detected within 1 minute."
+
+      - alert: SlowAPIResponse
+        expr: histogram_quantile(0.95, rate(http_response_time_seconds_bucket[5m])) > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Slow API Response Time"
+          description: "API response time exceeded 2 seconds for 95% of requests in the last 5 minutes."
+
+      - alert: UserServiceDown
+        expr: up{job="user-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "User-Service is Down"
+          description: "The User-Service health endpoint is unreachable for more than 30 seconds."

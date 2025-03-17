@@ -1,0 +1,64 @@
+services:
+  prometheus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - monitoring 
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: always
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring 
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000" 
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - monitoring 
+  ai-sre:
+    build: ../ai-sre
+    container_name: ai-sre
+    ports:
+      - "4000:4000"
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    external: true
+
+volumes:
+  grafana-data:
+    driver: local
+
+## docker-compose -f docker-compose.prometheus.yml up -d
+
+
+
+#################################
+
+## docker network create monitoring # ✅ Create the network if not exists
+## docker-compose -f docker-compose-dev.yml up --build -d
+## docker-compose -f docker-compose.prometheus.yml up -d
+
+##for i in {1..15}; do curl -X POST http://localhost:5001/api/auth/login -d '{"email": "admin1@vibe.store", "password": "vibe@123"}' -H "Content-Type: application/json"; done
+

@@ -1,0 +1,55 @@
+services:
+  user-service-db:
+    image: postgres:17-alpine
+    container_name: user-service-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user-service-ms
+    ports:
+      - "5455:5432"
+    volumes:
+      - user-service-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 5
+      timeout: 3s
+    networks:
+      - monitoring # ✅ Connect DB to network
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: user-service
+    restart: always
+    environment:
+      NODE_ENV: development
+      PORT: 5001
+      DATABASE_URL: "postgresql://postgres:postgres@user-service-db:5432/user-service-ms?schema=customer"
+      JWT_SECRET: "brxDFOfYDBayLzRovZjkqPOpuDmsWJeY"
+      RATE_LIMIT_MAX: 100
+      RATE_LIMIT_WINDOW: 15
+    ports:
+      - "5001:5001"
+    depends_on:
+      user-service-db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: ["sh", "-c", "npx prisma migrate dev --name init && npm run seed && npm run dev"]
+    networks:
+      - monitoring # ✅ Connect User-Service to network
+
+volumes:
+  user-service-db-data:
+    driver: local
+
+networks:
+  monitoring: # ✅ Ensure it matches Prometheus network
+    external: true
+
+## docker-compose -f docker-compose-dev.yml up --build -d
