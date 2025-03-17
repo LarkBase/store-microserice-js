@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies (including Prisma)
+# Install dependencies
 RUN npm install
 
 # Copy the rest of the application code
@@ -16,12 +16,8 @@ COPY . .
 # Generate Prisma client (Fixes Query Engine Issue)
 RUN npx prisma generate
 
-RUN npx prisma migrate dev --name init
-
-RUN npm run seed
-
 # Expose the correct port
-EXPOSE 5002
+EXPOSE 5001
 
-# Command to run the application in development mode
-CMD ["npm", "run", "dev"]
+# Run migrations and seed the database before starting the app
+CMD npx prisma migrate dev --name init && npm run seed && npm run dev

@@ -61,4 +61,3 @@ volumes:
 ## docker-compose -f docker-compose.prometheus.yml up -d
 
 ##for i in {1..15}; do curl -X POST http://localhost:5001/api/auth/login -d '{"email": "admin1@vibe.store", "password": "vibe@123"}' -H "Content-Type: application/json"; done
-

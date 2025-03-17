@@ -3,7 +3,7 @@ FROM postgres:17-alpine
 # Set environment variables
 ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=postgres
-ENV POSTGRES_DB=user-service-ms
+ENV POSTGRES_DB=product-service-ms
 
 # Expose the default PostgreSQL port
 EXPOSE 5432

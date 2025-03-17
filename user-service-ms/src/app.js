@@ -23,20 +23,23 @@ app.use(cookieParser());
 app.use(morgan("combined", { stream: logger.stream })); // Logging HTTP requests
 app.use(rateLimiter);
 
+// Add Prometheus Middleware
+app.use(metricsMiddleware);
+
 // Routes
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const healthRoutes = require("./routes/health.routes");
 const adminRoutes = require("./routes/admin.routes");
 
-// Add Prometheus Middleware
-app.use(metricsMiddleware);
-metricsEndpoint(app);
-
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/", healthRoutes);
+
+
+metricsEndpoint(app);
+
 // 404 Handler
 app.use(notFoundHandler);
 
