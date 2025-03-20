@@ -1,9 +1,12 @@
 const { OpenAI } = require("openai");
+const { google } = require("googleapis");
+const path = require("path");
 require("dotenv").config();
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+const credentialsPath = path.join(__dirname, "credentials.json"); 
 
 const generateDocumentation = async (files) => {
     try {
@@ -43,11 +46,59 @@ const generateDocumentation = async (files) => {
             content = content.replace(/^```json/, "").replace(/```$/, "").trim();
         }
 
-        return JSON.parse(content);
+        const parsedContent = JSON.parse(content);
+
+        // Upload to Google Docs
+        const docUrl = await uploadToGoogleDocs(parsedContent.documentation);
+
+        return { documentation: parsedContent, docUrl };
     } catch (error) {
         console.error("❌ AI Documentation Error:", error);
         return null;
     }
 };
 
-module.exports = { generateDocumentation };
+
+const uploadToGoogleDocs = async (docContent) => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: "utils/credentials.json", // Ensure the correct path
+    scopes: ["https://www.googleapis.com/auth/documents"],
+  });
+
+  const docs = google.docs({ version: "v1", auth });
+
+  // Create a new Google Doc
+  const document = await docs.documents.create({
+    requestBody: {
+      title: "AI-Generated Documentation",
+    },
+  });
+
+  const docId = document.data.documentId;
+
+  // Ensure docContent is valid and formatted correctly
+  const textToInsert = typeof docContent === "string" ? docContent : JSON.stringify(docContent, null, 2);
+
+  if (!textToInsert.trim()) {
+    throw new Error("Generated documentation is empty.");
+  }
+
+  // Insert text into the Google Doc
+  await docs.documents.batchUpdate({
+    documentId: docId,
+    requestBody: {
+      requests: [
+        {
+          insertText: {
+            location: { index: 1 },
+            text: textToInsert, // Ensure this contains valid text
+          },
+        },
+      ],
+    },
+  });
+
+  return `https://docs.google.com/document/d/${docId}`;
+}
+
+module.exports = { generateDocumentation, uploadToGoogleDocs };
