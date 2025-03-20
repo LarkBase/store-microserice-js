@@ -36,114 +36,119 @@ const normalizeRouteName = (route) => {
     ];
 };
 
-const findRouteFile = async (job, route) => {
+const githubHeaders = {
+    Authorization: `Bearer ${GITHUB_TOKEN}`,
+    Accept: "application/vnd.github.v3+json",
+};
+
+// ✅ Fetch the latest commit SHA from `main`
+const getMainBranchSHA = async () => {
     try {
-        const serviceFolder = `${job}-ms/src`; // Example: user-service-ms/src
-        const normalizedRoutes = normalizeRouteName(route);
-        console.log(`🔍 Searching for route: ${route} in service: ${serviceFolder}`);
-
-        const possibleDirs = ["routes", "controllers", "services"];
-        let foundFile = null;
-
-        for (const dir of possibleDirs) {
-            const dirPath = `${serviceFolder}/${dir}`;
-            const files = await listFilesInDir(dirPath);
-
-            for (const routeVariant of normalizedRoutes) {
-                const matchedFile = files.find(file => file.startsWith(routeVariant) && file.endsWith(".js"));
-                if (matchedFile) {
-                    foundFile = `${dirPath}/${matchedFile}`;
-                    break;
-                }
-            }
-
-            if (foundFile) break;
-        }
-
-        if (foundFile) {
-            console.log(`✅ Found route file: ${foundFile}`);
-
-            const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${foundFile}?ref=${BRANCH}`;
-
-            const response = await axios.get(url, {
-                headers: {
-                    Authorization: `token ${GITHUB_TOKEN}`,
-                    Accept: "application/vnd.github.v3.raw",
-                },
-            });
-
-            return { filePath: foundFile, code: response.data };
-        } else {
-            console.log("❌ Route file not found!");
-            return null;
-        }
+        const response = await axios.get(
+            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/ref/heads/${BRANCH}`,
+            { headers: githubHeaders }
+        );
+        return response.data.object.sha;
     } catch (error) {
-        console.error("❌ Error searching for route file:", error.message);
+        console.error("❌ Error fetching main branch SHA:", error.response?.data || error.message);
         return null;
     }
 };
 
-
-// ✅ Create a new GitHub branch, commit AI fix & merge PR
-const createBranchAndPR = async (service, route, fixedCode, explanation, branchName) => {
+// ✅ Find the Route File in the Repository
+const findRouteFile = async (service, route) => {
     try {
-        const mainBranch = BRANCH;
-        const filePath = `${service}-ms/src/routes/${route.replace("/", "")}.routes.js`;
+        const serviceFolder = `${service}-ms/src/routes`;
+        const routeName = route.replace("/", "").toLowerCase();
+        const branch = BRANCH;
 
-        console.log(`📂 Fetching file from GitHub: ${filePath}`);
+        console.log(`🔍 Searching for route: ${route} in ${serviceFolder}`);
 
-        // 1️⃣ Get File SHA
-        const fileData = await axios.get(
+        // Get the list of files in the routes directory
+        const filesResponse = await axios.get(
+            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${serviceFolder}?ref=${branch}`,
+            { headers: githubHeaders }
+        );
+
+        const matchedFile = filesResponse.data.find(file =>
+            file.name.startsWith(routeName) && file.name.endsWith(".js")
+        );
+
+        if (!matchedFile) {
+            console.log(`⚠️ No matching route file found for ${route}`);
+            return null;
+        }
+
+        // Fetch the file content
+        const fileData = await axios.get(matchedFile.download_url, { headers: githubHeaders });
+        console.log(`✅ Found route file: ${matchedFile.path}`);
+
+        return { filePath: matchedFile.path, code: fileData.data };
+    } catch (error) {
+        console.error("❌ Error searching for route file:", error.response?.data || error.message);
+        return null;
+    }
+};
+
+// ✅ Get file SHA (Required for updating a file)
+const getFileSHA = async (filePath) => {
+    try {
+        const response = await axios.get(
             `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`,
-            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+            { headers: githubHeaders }
         );
+        return response.data.sha;
+    } catch (error) {
+        console.error("❌ Error fetching file SHA:", error.response?.data || error.message);
+        return null;
+    }
+};
 
-        const fileSha = fileData.data.sha;
+// ✅ Create Branch, Commit AI Fix, Open & Merge PR
+const createBranchAndPR = async (service, route, fixedCode, explanation) => {
+    try {
+        const branchName = `hotfix/${new Date().toISOString().split("T")[0]}`;
+        console.log(`🚀 Creating Branch: ${branchName}`);
 
-        // 2️⃣ Create Branch
-        const branchRes = await axios.post(
-            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs`,
-            {
-                ref: `refs/heads/${branchName}`,
-                sha: fileData.data.sha
-            },
-            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
-        );
+        await createNewBranch(branchName);
 
-        console.log(`✅ Created Branch: ${branchName}`);
+        // ✅ Get the File to Edit
+        const fileData = await findRouteFile(service, route);
+        if (!fileData) throw new Error(`Route file for ${route} not found`);
 
-        // 3️⃣ Commit AI Fix
-        const commitRes = await axios.put(
+        const filePath = fileData.filePath;
+        const fileSHA = await getFileSHA(filePath);
+        if (!fileSHA) throw new Error("Failed to retrieve file SHA.");
+
+        // ✅ Commit AI Fix
+        await axios.put(
             `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`,
             {
                 message: `🚀 AI Fix for ${route}`,
                 content: Buffer.from(fixedCode).toString("base64"),
                 branch: branchName,
-                sha: fileSha
+                sha: fileSHA,
             },
-            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+            { headers: githubHeaders }
         );
 
         console.log(`✅ Committed AI Fix to ${branchName}`);
 
-        // 4️⃣ Create PR with AI Explanation
+        // ✅ Create PR with AI Explanation
         const prRes = await axios.post(
             `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls`,
             {
                 title: `🚀 Hotfix - AI Fix for ${route}`,
                 head: branchName,
-                base: mainBranch,
-                body: `### AI Suggested Fix
-                **Description:** ${explanation}
-                
-                **This PR includes AI-suggested fixes for the identified issue.**`
+                base: BRANCH,
+                body: `### AI Suggested Fix\n**Description:** ${explanation}\n\n**This PR includes AI-suggested fixes for the identified issue.**`,
             },
-            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+            { headers: githubHeaders }
         );
 
         console.log(`✅ Created PR: ${prRes.data.html_url}`);
 
-        // 5️⃣ Auto-Merge PR
+        // ✅ Auto-Merge PR
         await mergePR(prRes.data.number);
 
         return { success: true, prUrl: prRes.data.html_url };
@@ -161,9 +166,9 @@ const mergePR = async (prNumber) => {
             {
                 commit_title: "✅ Auto-merged AI Fix",
                 commit_message: "Merging AI-suggested fix automatically.",
-                merge_method: "squash"
+                merge_method: "squash",
             },
-            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+            { headers: githubHeaders }
         );
 
         console.log(`✅ PR Merged Successfully: ${mergeRes.data.message}`);
@@ -172,4 +177,40 @@ const mergePR = async (prNumber) => {
     }
 };
 
-module.exports = { findRouteFile , createBranchAndPR };
+// ✅ Create a new branch
+const createNewBranch = async (branchName) => {
+    try {
+        const mainBranchSHA = await getMainBranchSHA();
+        if (!mainBranchSHA) throw new Error("Failed to get main branch SHA.");
+
+        if (await checkBranchExists(branchName)) return;
+
+        await axios.post(
+            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs`,
+            { ref: `refs/heads/${branchName}`, sha: mainBranchSHA },
+            { headers: githubHeaders }
+        );
+
+        console.log(`✅ Created new branch: ${branchName}`);
+    } catch (error) {
+        console.error("❌ Error creating branch:", error.response?.data || error.message);
+    }
+};
+
+
+
+// ✅ Check if branch already exists
+const checkBranchExists = async (branchName) => {
+    try {
+        await axios.get(
+            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/ref/heads/${branchName}`,
+            { headers: githubHeaders }
+        );
+        console.log(`🔄 Branch already exists: ${branchName}`);
+        return true;
+    } catch (error) {
+        return false; // Branch does not exist
+    }
+};
+
+module.exports = { findRouteFile, createBranchAndPR, mergePR };
