@@ -1,43 +1,61 @@
 const { PrismaClient } = require("@prisma/client");
+const { analyzeAndFixCode } = require("../utils/aiHelper");
+const { findRouteFile } = require("../utils/githubHelper");
 
 const prisma = new PrismaClient();
 
-// ✅ Create Alert (Used by Prometheus)
+
 const createAlerts = async (req, res) => {
     try {
-      let alerts = req.body;
-  
-      // ✅ Convert single alert object to an array
-      if (!Array.isArray(alerts)) {
-        alerts = [alerts];
-      }
-  
-      const createdAlerts = await Promise.all(
-        alerts.map((alert) =>
-          prisma.alert.create({
-            data: {
-              alertName: alert.labels?.alertname || "Unknown Alert",
-              severity: alert.labels?.severity || "unknown",
-              description: alert.annotations?.description || "No description",
-              instance: alert.labels?.instance || "Unknown",
-              job: alert.labels?.job || "Unknown",
-              method: alert.labels?.method || "Unknown",
-              route: alert.labels?.route || "Unknown",
-              status: alert.labels?.status || "Unknown",
-              startsAt: alert.startsAt ? new Date(alert.startsAt) : new Date(),
-              endsAt: alert.endsAt ? new Date(alert.endsAt) : new Date(),
-            },
-          })
-        )
-      );
-  
-      console.log(`🚨 Stored ${createdAlerts.length} alerts`);
-      res.status(201).json({ message: "Alerts stored successfully", createdAlerts });
+        let alerts = req.body;
+        if (!Array.isArray(alerts)) {
+            alerts = [alerts];
+        }
+
+        const createdAlerts = await Promise.all(
+            alerts.map(async (alert) => {
+                const storedAlert = await prisma.alert.create({
+                    data: { ...alert },
+                });
+
+                console.log(`🚨 Stored alert: ${storedAlert.alertName}`);
+
+                // ✅ If it's a SlowAPIResponse, find the route code
+                if (storedAlert.alertName === "SlowAPIResponse" && storedAlert.route !== "Unknown") {
+                    console.log("🐢 Detected API Slowness - Fetching source code...");
+
+                    const routeCode = await findRouteFile(storedAlert.job, storedAlert.route);
+
+                    if (routeCode) {
+                        console.log("✅ Sending API code to AI for fix...");
+                        const aiFix = await analyzeAndFixCode(storedAlert, routeCode.code);
+
+                        if (aiFix) {
+                            console.log("✅ AI Suggested Fix:", aiFix);
+
+                            // Store AI response in DB
+                            await prisma.aIResponse.create({
+                                data: {
+                                    alertId: storedAlert.id,
+                                    question: storedAlert.description,
+                                    response: aiFix.fixedCode,
+                                    explanation: aiFix.explanation,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                return storedAlert;
+            })
+        );
+
+        res.status(201).json({ message: "Alerts stored successfully", createdAlerts });
     } catch (error) {
-      console.error("❌ Error storing alerts:", error);
-      res.status(500).json({ message: "Error storing alerts" });
+        console.error("❌ Error storing alerts:", error);
+        res.status(500).json({ message: "Error storing alerts" });
     }
-  };
+};
 
 // ✅ Get All Alerts (Frontend Fetch)
 const getAlerts = async (req, res) => {

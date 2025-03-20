@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const alertRoutes = require("./src/routes/alert.routes");
+const aiRoutes = require("./src/routes/aiResponse.routes");
 
 const app = express();
 app.use(bodyParser.json());
@@ -15,5 +16,6 @@ app.use(express.json());
 
 // ✅ Register Routes
 app.use(alertRoutes);
+app.use(aiRoutes);
 
 module.exports = app;

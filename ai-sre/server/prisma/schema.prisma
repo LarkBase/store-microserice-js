@@ -21,4 +21,16 @@ model Alert {
   endsAt      DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  aiResponses AIResponse[]
+}
+
+model AIResponse {
+  id          String   @id @default(uuid())
+  alertId     String   @unique
+  alert       Alert    @relation(fields: [alertId], references: [id])
+  question    String   // The AI query we asked
+  response    String   // AI-generated code fix
+  explanation String   // AI's explanation of the fix
+  createdAt   DateTime @default(now())
 }

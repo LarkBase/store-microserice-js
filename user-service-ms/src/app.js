@@ -31,7 +31,7 @@ const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const healthRoutes = require("./routes/health.routes");
 const adminRoutes = require("./routes/admin.routes");
-const failRoutes = require("./routes/fail.routes");
+const failRoutes = require("./routes/reset-password.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
