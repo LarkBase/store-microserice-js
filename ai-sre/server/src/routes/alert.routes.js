@@ -5,6 +5,7 @@ const {
   getAlertById,
   updateAlert,
   deleteAlert,
+  approveAlert
 } = require("../controllers/alert.controller");
 
 const router = express.Router();

@@ -116,16 +116,27 @@ const updateAlert = async (req, res) => {
 
 // ✅ Delete Alert by ID
 const deleteAlert = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.alert.delete({ where: { id } });
-
-    res.json({ message: "Alert deleted" });
-  } catch (error) {
-    console.error("❌ Error deleting alert:", error);
-    res.status(500).json({ message: "Error deleting alert" });
-  }
+    try {
+      const { id } = req.params;
+  
+      // ✅ Step 1: Delete AI Responses related to this alert
+      await prisma.aIResponse.deleteMany({
+        where: { alertId: id },
+      });
+  
+      // ✅ Step 2: Delete the Alert
+      await prisma.alert.delete({
+        where: { id },
+      });
+  
+      res.json({ message: "Alert and associated AI responses deleted successfully." });
+    } catch (error) {
+      console.error("❌ Error deleting alert:", error);
+      res.status(500).json({ message: "Error deleting alert" });
+    }
 };
+  
+  
 
 
 const approveAlert = async (req, res) => {
