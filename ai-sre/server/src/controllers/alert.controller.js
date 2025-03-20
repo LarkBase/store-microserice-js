@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
-const { analyzeAndFixCode } = require("../utils/aiHelper");
-const { findRouteFile } = require("../utils/githubHelper");
+const { analyzeAndFixCode } = require("../../utils/aiHelper");
+const { findRouteFile , createBranchAndPR } = require("../../utils/githubHelper");
 
 const prisma = new PrismaClient();
 
@@ -14,8 +14,22 @@ const createAlerts = async (req, res) => {
 
         const createdAlerts = await Promise.all(
             alerts.map(async (alert) => {
+                // Extracting necessary fields
+                const alertData = {
+                    alertName: alert.labels?.alertname || "Unknown Alert",
+                    severity: alert.labels?.severity || "unknown",
+                    description: alert.annotations?.description || "No description",
+                    instance: alert.labels?.instance || "Unknown",
+                    job: alert.labels?.job || "Unknown",
+                    method: alert.labels?.method || "Unknown",
+                    route: alert.labels?.route || "Unknown",
+                    status: alert.labels?.status || "Unknown",
+                    startsAt: alert.startsAt ? new Date(alert.startsAt) : new Date(),
+                    endsAt: alert.endsAt ? new Date(alert.endsAt) : new Date(),
+                };
+
                 const storedAlert = await prisma.alert.create({
-                    data: { ...alert },
+                    data: alertData,
                 });
 
                 console.log(`🚨 Stored alert: ${storedAlert.alertName}`);
@@ -56,6 +70,7 @@ const createAlerts = async (req, res) => {
         res.status(500).json({ message: "Error storing alerts" });
     }
 };
+
 
 // ✅ Get All Alerts (Frontend Fetch)
 const getAlerts = async (req, res) => {
@@ -112,4 +127,41 @@ const deleteAlert = async (req, res) => {
   }
 };
 
-module.exports = { createAlerts, getAlerts, getAlertById, updateAlert, deleteAlert };
+
+const approveAlert = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch the alert
+        const alert = await prisma.alert.findUnique({ where: { id } });
+        if (!alert) {
+            return res.status(404).json({ message: "Alert not found" });
+        }
+
+        // Ensure AI-suggested code exists
+        const aiResponse = await prisma.aIResponse.findFirst({ where: { alertId: id } });
+        if (!aiResponse) {
+            return res.status(400).json({ message: "No AI-generated fix available." });
+        }
+
+        // Generate branch name
+        const branchName = `hotfix/${new Date().toISOString().split("T")[0]}`;
+
+        console.log(`🚀 Creating Branch: ${branchName}`);
+
+        // Push AI fix to GitHub
+        const result = await createBranchAndPR(alert.job, alert.route, aiResponse.response, aiResponse.explanation, branchName);
+
+        if (result.success) {
+            return res.json({ message: "PR Merged Successfully", prUrl: result.prUrl });
+        } else {
+            return res.status(500).json({ message: "GitHub PR merge failed." });
+        }
+    } catch (error) {
+        console.error("❌ Error approving alert:", error);
+        res.status(500).json({ message: "Error approving alert." });
+    }
+};
+
+
+module.exports = { createAlerts, getAlerts, getAlertById, updateAlert, deleteAlert, approveAlert };
