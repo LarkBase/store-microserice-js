@@ -5,7 +5,7 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ["ai-sre:4000"]
+        - targets: ["ai-sre-server:4000"]
       scheme: http
       path_prefix: /
       timeout: 10s

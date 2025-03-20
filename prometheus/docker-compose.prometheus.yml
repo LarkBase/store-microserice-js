@@ -1,4 +1,53 @@
 services:
+  ai-sre-service-db:
+    image: postgres:17-alpine
+    container_name: ai-sre-service-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai-sre-service-ms
+    ports:
+      - "5456:5432"  # Changed port to avoid conflict with user-service-db
+    volumes:
+      - ai-sre-service-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 5
+      timeout: 3s
+    networks:
+      - monitoring  # ✅ Connect DB to monitoring network
+
+  ai-sre-server:
+    build:
+      context: ../ai-sre/server
+      dockerfile: Dockerfile
+    container_name: ai-sre-server
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@ai-sre-service-db:5432/ai-sre-service-ms"
+    ports:
+      - "4000:4000"
+    depends_on:
+      ai-sre-service-db:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+  ai-sre-client:
+    build:
+      context: ../ai-sre/client
+      dockerfile: Dockerfile
+    container_name: ai-sre-client
+    restart: always
+    ports:
+      - "5173:5173"  # Expose Vite on 5173
+    depends_on:
+      - ai-sre-server
+    networks:
+      - monitoring
+
   prometheus:
     build:
       context: .
@@ -34,13 +83,6 @@ services:
       - grafana-data:/var/lib/grafana
     networks:
       - monitoring 
-  ai-sre:
-    build: ../ai-sre
-    container_name: ai-sre
-    ports:
-      - "4000:4000"
-    networks:
-      - monitoring
 
 networks:
   monitoring:
@@ -49,6 +91,9 @@ networks:
 volumes:
   grafana-data:
     driver: local
+  ai-sre-service-db-data:
+    driver: local
+
 
 ## docker-compose -f docker-compose.prometheus.yml up -d
 

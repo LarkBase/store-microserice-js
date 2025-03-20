@@ -13,8 +13,8 @@ groups:
 
       # 🚨 Alert: High Login Attempts
       - alert: HighLoginAttempts
-        expr: increase(login_requests_total[1m]) > 5
-        for: 30s
+        expr: increase(login_requests_total[1m]) > 10
+        for: 15s
         labels:
           severity: critical
         annotations:
@@ -34,9 +34,21 @@ groups:
       # 🚨 Alert: User-Service Down
       - alert: UserServiceDown
         expr: up{job="user-service"} == 0
-        for: 30s
+        for: 10s
         labels:
           severity: critical
         annotations:
           summary: "User-Service is Down"
           description: "The User-Service health endpoint is unreachable for more than 30 seconds."
+
+      # 🚨 Alert: High API Failure Rate (>5 errors in 1 day, excluding login)
+      - alert: HighAPIFailures
+        expr: increase(api_errors_total[1d]) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API Failure Rate Detected"
+          description: "More than 5 API errors (500 status) detected in the last 1 minute."
+
+

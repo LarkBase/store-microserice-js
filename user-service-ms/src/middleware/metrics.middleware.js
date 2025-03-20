@@ -18,45 +18,82 @@ const responseTimeHistogram = new client.Histogram({
   buckets: [0.1, 0.3, 0.5, 1, 2, 5],
 });
 
-// ✅ Fixed: Ensure `login_requests_total` includes labels
+// ✅ Login Request Counter
 const loginCounter = new client.Counter({
   name: "login_requests_total",
   help: "Total number of login requests",
   labelNames: ["method", "route"],
 });
 
-// ✅ Fixed: Ensure `login_failures_total` includes labels
+// ✅ Failed Login Attempts Counter
 const loginFailureCounter = new client.Counter({
   name: "login_failures_total",
   help: "Total number of failed login attempts",
   labelNames: ["method", "route"],
 });
 
-// ✅ Use Counter for Login Attempts Per Minute
+// ✅ Login Attempts Per Minute Counter
 const loginAttemptsCounter = new client.Counter({
   name: "login_attempts_total",
   help: "Total number of login attempts",
   labelNames: ["method", "route"],
 });
 
+// ✅ API Errors Counter (Excludes login)
+const apiErrorCounter = new client.Counter({
+  name: "api_errors_total",
+  help: "Total number of API errors",
+  labelNames: ["method", "route", "status"],
+});
+
 // ✅ Middleware to track metrics
 const metricsMiddleware = (req, res, next) => {
-  console.log(`🔎 Incoming request: ${req.method} ${req.path}`); // ✅ Log all incoming requests
+  console.log(`🔎 Incoming request: ${req.method} ${req.path}`);
 
   const startTime = Date.now();
 
   res.on("finish", () => {
     console.log(`🔎 Metrics Middleware Executed: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`);
-  
+    
+    const duration = (Date.now() - startTime) / 1000; // Convert to seconds
+
     if ((req.path.includes("auth/login") || req.originalUrl.includes("auth/login")) && req.method === "POST") {
       console.log("🚀 Incrementing login_requests_total for:", req.originalUrl);
       loginCounter.inc({ method: req.method, route: req.originalUrl });
     }
+
+    // ✅ Track HTTP request counts (Excludes login)
+    if (!req.path.includes("auth/login")) {
+      httpRequestCounter.inc({
+        method: req.method,
+        route: req.route ? req.route.path : req.path,
+        status: res.statusCode,
+      });
+
+      // ✅ Track Response Time for all APIs
+      responseTimeHistogram.observe(
+        {
+          method: req.method,
+          route: req.route ? req.route.path : req.path,
+          status: res.statusCode,
+        },
+        duration
+      );
+
+      // ✅ Track Errors (500+ status codes, Excludes login)
+      if (res.statusCode >= 500) {
+        console.log("❌ Error detected for:", req.path);
+        apiErrorCounter.inc({
+          method: req.method,
+          route: req.route ? req.route.path : req.path,
+          status: res.statusCode,
+        });
+      }
+    }
   });
-  
+
   next();
 };
-
 
 // ✅ Expose /metrics endpoint for Prometheus
 const metricsEndpoint = (app) => {
