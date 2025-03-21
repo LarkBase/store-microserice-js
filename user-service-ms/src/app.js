@@ -15,7 +15,7 @@ const { metricsMiddleware, metricsEndpoint } = require("./middleware/metrics.mid
 const app = express();
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+app.use(cors({origin: "*"}));
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -32,11 +32,13 @@ const userRoutes = require("./routes/user.routes");
 const healthRoutes = require("./routes/health.routes");
 const adminRoutes = require("./routes/admin.routes");
 const failRoutes = require("./routes/reset-password.routes");
+const logRoutes = require("./routes/logs.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/fail", failRoutes);
+app.use("/api/logs", logRoutes);
 app.use("/", healthRoutes);
 
 
